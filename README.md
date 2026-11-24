@@ -5,7 +5,8 @@ Backend = private GitHub repo `FaraonTT/fmessage-data` (JSON files via GitHub Co
 
 ## Setup
 1. Create a fine-grained token limited to `fmessage-data` with **Contents: Read and write**.
-2. Either add it as Actions secret `DATA_TOKEN` (baked into the APK), or enter it in the app on first launch.
-3. Push to `main` - Actions builds a signed release APK and publishes it under Releases.
+2. Enter the GitHub token in the app's first-run GitHub configuration screen. Do not put a write token in the APK or in Gradle build variables: APK contents can be inspected and extracted.
+3. Add the signing credentials as GitHub Actions secrets (see the workflow): `KEYSTORE_B64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, and `SIGNING_KEY_PASSWORD`.
+4. Push to `main` - Actions builds a signed release APK and publishes it under Releases.
 
 The first registered account becomes owner/admin.
