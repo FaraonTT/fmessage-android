@@ -26,6 +26,9 @@ jobs:
         with:
           gradle-version: 8.13
 
+      - name: Generate SVG icon drawables
+        run: python3 tools/gen_icons.py
+
       - name: Restore signing key
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
