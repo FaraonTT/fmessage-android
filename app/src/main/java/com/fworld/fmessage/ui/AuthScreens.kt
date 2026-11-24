@@ -27,22 +27,18 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.fworld.fmessage.AppVM
 import com.fworld.fmessage.R
-import com.fworld.fmessage.data.Prefs
 
 @Composable
 fun AuthScreen(vm: AppVM) {
-    val ready by vm.ghReady.collectAsState()
-    var mode by remember { mutableStateOf("login") } // login | register | server
+    var mode by remember { mutableStateOf("login") } // login | register
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
-    var repo by remember { mutableStateOf(Prefs.ghRepoFull) }
-    var ghToken by remember { mutableStateOf(Prefs.ghToken) }
     var error by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var showPass by remember { mutableStateOf(false) }
 
-    val shown = if (!ready) "server" else mode
+    val shown = mode
     fun go(m: String) { mode = m; error = "" }
 
     val scheme = MaterialTheme.colorScheme
@@ -58,7 +54,7 @@ fun AuthScreen(vm: AppVM) {
             Spacer(Modifier.height(16.dp))
             Text("fMessage", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
             Text(
-                when (shown) { "register" -> "Создайте аккаунт"; "server" -> "Подключение к серверу данных"; else -> "Войдите в мессенджер" },
+                if (shown == "register") "Создайте аккаунт" else "Войдите в мессенджер",
                 style = MaterialTheme.typography.bodyLarge, color = scheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(20.dp))
@@ -74,24 +70,6 @@ fun AuthScreen(vm: AppVM) {
                                 Text(error, Modifier.padding(12.dp), color = scheme.onErrorContainer, style = MaterialTheme.typography.bodyMedium)
                             }
                         }
-                        if (m == "server") {
-                            Text(
-                                "Все данные хранятся в приватном GitHub-репозитории. Укажите его и токен доступа (fine-grained, право Contents: Read and write).",
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            OutlinedTextField(value = repo, onValueChange = { repo = it }, label = { Text("Репозиторий (owner/repo)") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(
-                                value = ghToken, onValueChange = { ghToken = it }, label = { Text("GitHub токен") }, singleLine = true,
-                                visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth(),
-                            )
-                            Button(
-                                enabled = !loading && repo.contains("/") && ghToken.isNotBlank(), modifier = Modifier.fillMaxWidth().height(52.dp),
-                                onClick = {
-                                    loading = true; error = ""
-                                    vm.saveGithubConfig(repo, ghToken) { err -> loading = false; if (err != null) error = err }
-                                },
-                            ) { if (loading) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = scheme.onPrimary) else Text("Подключиться") }
-                        } else {
                             OutlinedTextField(
                                 value = email, onValueChange = { email = it }, label = { Text("Email") }, singleLine = true,
                                 leadingIcon = { Ico(R.drawable.ic_mail) },
