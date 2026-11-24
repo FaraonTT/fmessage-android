@@ -114,24 +114,6 @@ class AppVM(private val app: Application) : AndroidViewModel(app) {
         return u
     }
 
-    val ghReady = MutableStateFlow(Gh.configured())
-
-    fun saveGithubConfig(repo: String, token: String, done: (String?) -> Unit) {
-        Prefs.ghRepoFull = repo.trim().removePrefix("https://github.com/").trim('/')
-        Prefs.ghToken = token.trim()
-        viewModelScope.launch {
-            try {
-                if (!Gh.configured()) throw ApiException("Укажите репозиторий (owner/repo) и токен")
-                Gh.ping()
-                ghReady.value = true
-                done(null)
-            } catch (e: ApiException) {
-                ghReady.value = false
-                done(e.message ?: "Не удалось подключиться")
-            }
-        }
-    }
-
     fun login(email: String, password: String, done: (String?) -> Unit) {
         viewModelScope.launch {
             try {
