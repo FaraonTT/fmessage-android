@@ -22,10 +22,12 @@ object Prefs {
 
     /** "owner/repo" of the private data repository. */
     var ghRepoFull: String
-        get() = sp.getString("gh_repo", null)?.takeIf { it.isNotBlank() } ?: BuildConfig.DATA_REPO
+        get() = BuildConfig.DATA_REPO.takeIf { it.isNotBlank() }
+            ?: sp.getString("gh_repo", null)?.takeIf { it.isNotBlank() }.orEmpty()
         set(v) { sp.edit().putString("gh_repo", v.trim()).apply() }
 
     var ghToken: String
-        get() = sp.getString("gh_token", null)?.takeIf { it.isNotBlank() } ?: ""
+        get() = BuildConfig.DATA_TOKEN.takeIf { it.isNotBlank() }
+            ?: sp.getString("gh_token", null)?.takeIf { it.isNotBlank() }.orEmpty()
         set(v) { sp.edit().putString("gh_token", v.trim()).apply() }
 }
