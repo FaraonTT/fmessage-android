@@ -45,46 +45,40 @@ jobs:
       - name: Generate SVG icon drawables
         run: python3 tools/gen_icons.py
 
-      - name: Restore signing key
+      - name: Restore signing key and configuration
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
-          set -e
+          set -euo pipefail
 
-          PASS="$(grep '^storePassword=' keystore/keystore.properties | cut -d= -f2-)"
+          test -n "$KEYSTORE_B64" || { echo "::error::Missing KEYSTORE_B64 secret"; exit 1; }
+          test -n "$SIGNING_STORE_PASSWORD" || { echo "::error::Missing SIGNING_STORE_PASSWORD secret"; exit 1; }
+          test -n "$SIGNING_KEY_ALIAS" || { echo "::error::Missing SIGNING_KEY_ALIAS secret"; exit 1; }
+          test -n "$SIGNING_KEY_PASSWORD" || { echo "::error::Missing SIGNING_KEY_PASSWORD secret"; exit 1; }
 
-          if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > keystore/fmessage-release.jks
-          elif [ -f keystore/fmessage-release.jks.b64 ]; then
-            base64 -d keystore/fmessage-release.jks.b64 > keystore/fmessage-release.jks || true
-          fi
+          mkdir -p keystore
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > keystore/fmessage-release.jks
 
-          if ! keytool -list \
+          {
+            printf 'storePassword=%s\n' "$SIGNING_STORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$SIGNING_KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$SIGNING_KEY_PASSWORD"
+          } > keystore/keystore.properties
+
+          keytool -list \
             -keystore keystore/fmessage-release.jks \
             -storetype PKCS12 \
-            -storepass "$PASS" > /dev/null 2>&1; then
-
-            echo "::warning::Keystore unavailable - generating a new one"
-            rm -f keystore/fmessage-release.jks
-
-            keytool -genkeypair \
-              -keystore keystore/fmessage-release.jks \
-              -storetype PKCS12 \
-              -alias fmessage \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 36500 \
-              -storepass "$PASS" \
-              -keypass "$PASS" \
-              -dname "CN=fMessage, O=fWorld"
-          fi
+            -storepass "$SIGNING_STORE_PASSWORD" \
+            -alias "$SIGNING_KEY_ALIAS" > /dev/null
 
       - name: Build signed release APK
         env:
           VERSION_CODE: ${{ github.run_number }}
           VERSION_NAME: 1.0.${{ github.run_number }}
           DATA_REPO: FaraonTT/fmessage-data
-          DATA_TOKEN: ${{ secrets.DATA_TOKEN }}
         run: gradle --no-daemon assembleRelease
 
       - name: Rename APK
