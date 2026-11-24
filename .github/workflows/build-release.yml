@@ -12,19 +12,26 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: '17'
 
-      - uses: android-actions/setup-android@v3
-
-      - uses: gradle/actions/setup-gradle@v4
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
         with:
-          gradle-version: 8.13
+          packages: platform-tools
+          accept-android-sdk-licenses: true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
 
       - name: Generate SVG icon drawables
         run: python3 tools/gen_icons.py
@@ -33,16 +40,34 @@ jobs:
         env:
           KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
         run: |
-          PASS="$(grep storePassword keystore/keystore.properties | cut -d= -f2)"
+          set -e
+
+          PASS="$(grep '^storePassword=' keystore/keystore.properties | cut -d= -f2-)"
+
           if [ -n "$KEYSTORE_B64" ]; then
             echo "$KEYSTORE_B64" | base64 -d > keystore/fmessage-release.jks
-          else
+          elif [ -f keystore/fmessage-release.jks.b64 ]; then
             base64 -d keystore/fmessage-release.jks.b64 > keystore/fmessage-release.jks || true
           fi
-          if ! keytool -list -keystore keystore/fmessage-release.jks -storetype PKCS12 -storepass "$PASS" > /dev/null 2>&1; then
-            echo "::warning::Committed keystore unreadable - generating a fresh one for this build"
+
+          if ! keytool -list \
+            -keystore keystore/fmessage-release.jks \
+            -storetype PKCS12 \
+            -storepass "$PASS" > /dev/null 2>&1; then
+
+            echo "::warning::Keystore unavailable - generating a new one"
             rm -f keystore/fmessage-release.jks
-            keytool -genkeypair -keystore keystore/fmessage-release.jks -storetype PKCS12 -alias fmessage -keyalg RSA -keysize 2048 -validity 36500 -storepass "$PASS" -keypass "$PASS" -dname "CN=fMessage, O=fWorld"
+
+            keytool -genkeypair \
+              -keystore keystore/fmessage-release.jks \
+              -storetype PKCS12 \
+              -alias fmessage \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 36500 \
+              -storepass "$PASS" \
+              -keypass "$PASS" \
+              -dname "CN=fMessage, O=fWorld"
           fi
 
       - name: Build signed release APK
@@ -55,18 +80,31 @@ jobs:
 
       - name: Rename APK
         run: |
+          set -e
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk dist/fMessage-1.0.${{ github.run_number }}.apk
+          cp app/build/outputs/apk/release/app-release.apk \
+            "dist/fMessage-1.0.${{ github.run_number }}.apk"
 
       - name: Verify signature
         run: |
-          APKSIGNER=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1)
-          $APKSIGNER verify --print-certs dist/*.apk
+          set -e
 
-      - uses: actions/upload-artifact@v4
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" \
+            -type f -name apksigner | sort -V | tail -n 1)"
+
+          if [ -z "$APKSIGNER" ]; then
+            echo "::error::apksigner not found"
+            exit 1
+          fi
+
+          "$APKSIGNER" verify --verbose --print-certs dist/*.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
         with:
           name: fMessage-release-apk
           path: dist/*.apk
+          if-no-files-found: error
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
