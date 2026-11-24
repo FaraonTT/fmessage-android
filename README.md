@@ -1,12 +1,21 @@
 # fMessage (Android, Kotlin)
 
-Native port of the fMessage web messenger. Jetpack Compose, Material 3 Expressive, all icons are SVG vector drawables.
-Backend = private GitHub repo `FaraonTT/fmessage-data` (JSON files via GitHub Contents API, polling for realtime).
+Native Android messenger built with Jetpack Compose.
 
-## Setup
-1. Create a fine-grained token limited to `fmessage-data` with **Contents: Read and write**.
-2. Enter the GitHub token in the app's first-run GitHub configuration screen. Do not put a write token in the APK or in Gradle build variables: APK contents can be inspected and extracted.
-3. Add the signing credentials as GitHub Actions secrets (see the workflow): `KEYSTORE_B64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, and `SIGNING_KEY_PASSWORD`.
-4. Push to `main` - Actions builds a signed release APK and publishes it under Releases.
+The app uses the private GitHub repository `FaraonTT/fmessage-data` as its data store. The repository name and GitHub token are supplied to Gradle during the release build. The token is compiled into the APK, so the app no longer asks users to enter repository details or a token.
+
+## Build release APK
+
+Configure these GitHub Actions repository secrets:
+
+- `DATA_TOKEN` — fine-grained GitHub token for `FaraonTT/fmessage-data`, with **Contents: Read and write**.
+- `KEYSTORE_B64`
+- `SIGNING_STORE_PASSWORD`
+- `SIGNING_KEY_ALIAS`
+- `SIGNING_KEY_PASSWORD`
+
+Push to `main` or run the workflow manually. The workflow builds and publishes the signed APK.
+
+**Security warning:** embedding a GitHub token in an APK makes it extractable by anyone who obtains the APK. Use a dedicated fine-grained token limited to this single repository, and revoke/rotate it if the APK is distributed beyond the intended audience.
 
 The first registered account becomes owner/admin.
