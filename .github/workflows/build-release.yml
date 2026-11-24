@@ -1,0 +1,122 @@
+name: Build release APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          accept-android-sdk-licenses: true
+
+      - name: Install Android SDK 37
+        run: |
+          sdkmanager "platform-tools" "platforms;android-37.0"
+
+          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && \
+             [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s android-37.0 "$ANDROID_HOME/platforms/android-37"
+          fi
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Generate SVG icon drawables
+        run: python3 tools/gen_icons.py
+
+      - name: Restore signing key and configuration
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          test -n "$KEYSTORE_B64" || { echo "::error::Missing KEYSTORE_B64 secret"; exit 1; }
+          test -n "$SIGNING_STORE_PASSWORD" || { echo "::error::Missing SIGNING_STORE_PASSWORD secret"; exit 1; }
+          test -n "$SIGNING_KEY_ALIAS" || { echo "::error::Missing SIGNING_KEY_ALIAS secret"; exit 1; }
+          test -n "$SIGNING_KEY_PASSWORD" || { echo "::error::Missing SIGNING_KEY_PASSWORD secret"; exit 1; }
+
+          mkdir -p keystore
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > keystore/fmessage-release.jks
+
+          {
+            printf 'storePassword=%s\n' "$SIGNING_STORE_PASSWORD"
+            printf 'keyAlias=%s\n' "$SIGNING_KEY_ALIAS"
+            printf 'keyPassword=%s\n' "$SIGNING_KEY_PASSWORD"
+          } > keystore/keystore.properties
+
+          keytool -list \
+            -keystore keystore/fmessage-release.jks \
+            -storetype PKCS12 \
+            -storepass "$SIGNING_STORE_PASSWORD" \
+            -alias "$SIGNING_KEY_ALIAS" > /dev/null
+
+      - name: Build signed release APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.0.${{ github.run_number }}
+          DATA_REPO: FaraonTT/fmessage-data
+          DATA_TOKEN: ${{ secrets.DATA_TOKEN }}
+        run: |
+          set -euo pipefail
+          test -n "$DATA_TOKEN" || { echo "::error::Missing DATA_TOKEN secret"; exit 1; }
+          gradle --no-daemon assembleRelease
+
+      - name: Rename APK
+        run: |
+          set -e
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk \
+            "dist/fMessage-1.0.${{ github.run_number }}.apk"
+
+      - name: Verify signature
+        run: |
+          set -e
+
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" \
+            -type f -name apksigner | sort -V | tail -n 1)"
+
+          if [ -z "$APKSIGNER" ]; then
+            echo "::error::apksigner not found"
+            exit 1
+          fi
+
+          "$APKSIGNER" verify --verbose --print-certs dist/*.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: fMessage-release-apk
+          path: dist/*.apk
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('build-{0}', github.run_number) }}
+          name: fMessage 1.0.${{ github.run_number }}
+          files: dist/*.apk
+          generate_release_notes: true
