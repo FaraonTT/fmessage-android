@@ -8,21 +8,39 @@ plugins {
 
 val ksProps = Properties().apply {
     val f = rootProject.file("keystore/keystore.properties")
-    if (f.exists()) f.inputStream().use { load(it) }
+    if (f.exists()) {
+        f.inputStream().use { load(it) }
+    }
 }
 
 android {
     namespace = "com.fworld.fmessage"
-    compileSdk = 37
+
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 0
+        }
+    }
 
     defaultConfig {
         applicationId = "com.fworld.fmessage"
         minSdk = 26
         targetSdk = 35
+
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
         versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
-        buildConfigField("String", "DATA_REPO", "\"${System.getenv("DATA_REPO") ?: ""}\"")
-        buildConfigField("String", "DATA_TOKEN", "\"${System.getenv("DATA_TOKEN") ?: ""}\"")
+
+        buildConfigField(
+            "String",
+            "DATA_REPO",
+            "\"${System.getenv("DATA_REPO") ?: ""}\""
+        )
+
+        buildConfigField(
+            "String",
+            "DATA_TOKEN",
+            "\"${System.getenv("DATA_TOKEN") ?: ""}\""
+        )
     }
 
     signingConfigs {
@@ -63,6 +81,7 @@ android {
 
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2026.09.00"))
+
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.foundation:foundation")
@@ -71,12 +90,15 @@ dependencies {
 
     implementation("androidx.core:core-ktx:1.16.0")
     implementation("androidx.activity:activity-compose:1.10.1")
+
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.1")
+
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.getstream:stream-webrtc-android:1.3.8")
 }
