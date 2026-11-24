@@ -1,0 +1,74 @@
+name: Build release APK
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.13
+
+      - name: Restore signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          PASS="$(grep storePassword keystore/keystore.properties | cut -d= -f2)"
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > keystore/fmessage-release.jks
+          else
+            base64 -d keystore/fmessage-release.jks.b64 > keystore/fmessage-release.jks || true
+          fi
+          if ! keytool -list -keystore keystore/fmessage-release.jks -storetype PKCS12 -storepass "$PASS" > /dev/null 2>&1; then
+            echo "::warning::Committed keystore unreadable - generating a fresh one for this build"
+            rm -f keystore/fmessage-release.jks
+            keytool -genkeypair -keystore keystore/fmessage-release.jks -storetype PKCS12 -alias fmessage -keyalg RSA -keysize 2048 -validity 36500 -storepass "$PASS" -keypass "$PASS" -dname "CN=fMessage, O=fWorld"
+          fi
+
+      - name: Build signed release APK
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: 1.0.${{ github.run_number }}
+          DATA_REPO: FaraonTT/fmessage-data
+          DATA_TOKEN: ${{ secrets.DATA_TOKEN }}
+        run: gradle --no-daemon assembleRelease
+
+      - name: Rename APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/fMessage-1.0.${{ github.run_number }}.apk
+
+      - name: Verify signature
+        run: |
+          APKSIGNER=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1)
+          $APKSIGNER verify --print-certs dist/*.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fMessage-release-apk
+          path: dist/*.apk
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('build-{0}', github.run_number) }}
+          name: fMessage 1.0.${{ github.run_number }}
+          files: dist/*.apk
+          generate_release_notes: true
