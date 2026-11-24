@@ -30,11 +30,15 @@ android {
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
         versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
 
-        buildConfigField(
-            "String",
-            "DATA_REPO",
-            "\"${System.getenv("DATA_REPO") ?: ""}\""
-        )
+        // CI injects these values at build time. The token is embedded in the APK.
+        // WARNING: APK users can extract it; use a narrowly scoped token.
+        val dataRepo = System.getenv("DATA_REPO")?.takeIf { it.isNotBlank() } ?: "FaraonTT/fmessage-data"
+        val dataToken = System.getenv("DATA_TOKEN") ?: ""
+        fun buildConfigString(value: String): String =
+            "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+        buildConfigField("String", "DATA_REPO", buildConfigString(dataRepo))
+        buildConfigField("String", "DATA_TOKEN", buildConfigString(dataToken))
 
     }
 
