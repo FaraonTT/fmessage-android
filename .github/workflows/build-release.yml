@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
@@ -28,9 +28,14 @@ jobs:
         with:
           accept-android-sdk-licenses: true
 
-      - name: Install Android SDK packages
+      - name: Install Android SDK 37
         run: |
-          sdkmanager "platforms;android-37"
+          sdkmanager "platform-tools" "platforms;android-37.0"
+
+          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && \
+             [ ! -e "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s android-37.0 "$ANDROID_HOME/platforms/android-37"
+          fi
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -92,6 +97,7 @@ jobs:
       - name: Verify signature
         run: |
           set -e
+
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" \
             -type f -name apksigner | sort -V | tail -n 1)"
 
