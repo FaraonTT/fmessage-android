@@ -26,6 +26,6 @@ object Prefs {
         set(v) { sp.edit().putString("gh_repo", v.trim()).apply() }
 
     var ghToken: String
-        get() = sp.getString("gh_token", null)?.takeIf { it.isNotBlank() } ?: BuildConfig.DATA_TOKEN
+        get() = sp.getString("gh_token", null)?.takeIf { it.isNotBlank() } ?: ""
         set(v) { sp.edit().putString("gh_token", v.trim()).apply() }
 }
