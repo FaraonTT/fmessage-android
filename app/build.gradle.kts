@@ -36,11 +36,6 @@ android {
             "\"${System.getenv("DATA_REPO") ?: ""}\""
         )
 
-        buildConfigField(
-            "String",
-            "DATA_TOKEN",
-            "\"${System.getenv("DATA_TOKEN") ?: ""}\""
-        )
     }
 
     signingConfigs {
@@ -85,7 +80,7 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material3:material3:1.5.0-beta02")
     implementation("androidx.compose.animation:animation")
 
     implementation("androidx.core:core-ktx:1.16.0")
