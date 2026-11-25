@@ -42,8 +42,10 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Generate SVG icon drawables
-        run: python3 tools/gen_icons.py
+      - name: Generate and normalize SVG icon drawables
+        run: |
+          python3 tools/gen_icons.py
+          python3 tools/svg_fix.py
 
       - name: Restore signing key and configuration
         env:
