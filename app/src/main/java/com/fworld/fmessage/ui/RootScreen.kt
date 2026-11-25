@@ -113,7 +113,6 @@ private fun MainShell(vm: AppVM) {
             }
         }
 
-        MusicHost(vm)
         CallOverlay(vm)
     }
 }
