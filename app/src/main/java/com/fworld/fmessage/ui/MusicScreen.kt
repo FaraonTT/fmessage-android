@@ -5,6 +5,7 @@ package com.fworld.fmessage.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -43,8 +44,6 @@ fun TrackArt(t: Track?, size: Dp, radius: Dp = 14.dp, modifier: Modifier = Modif
         }
     }
 }
-
-private fun Modifier.background(c: Color): Modifier = this.then(androidx.compose.foundation.background(c))
 
 @Composable
 fun MiniPlayer(vm: AppVM) {
@@ -148,14 +147,13 @@ fun MusicScreen(vm: AppVM) {
     val library by music.library.collectAsState()
     val saved by music.saved.collectAsState()
     val scanning by music.scanning.collectAsState()
+    val granted by music.permissionGranted.collectAsState()
     val cur by music.current.collectAsState()
     val playing by music.playing.collectAsState()
-    var granted by remember { mutableStateOf(music.hasPermission()) }
-    var q by remember { mutableStateOf("") }
     var tab by remember { mutableIntStateOf(0) }
+    var q by remember { mutableStateOf("") }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
-        granted = ok
         if (ok) music.scan() else vm.toast("Нужен доступ к музыке на устройстве")
     }
     LaunchedEffect(granted) { if (granted && library.isEmpty()) music.scan() }
@@ -197,24 +195,10 @@ fun MusicScreen(vm: AppVM) {
         OutlinedTextField(
             value = q, onValueChange = { q = it }, singleLine = true, placeholder = { Text("Название, исполнитель, альбом") },
             leadingIcon = { Ico(R.drawable.ic_search) },
-            trailingIcon = { if (q.isNotEmpty()) IconButton(onClick = { q = "" }) { Ico(R.drawable.ic_close) } },
-            shape = RoundedCornerShape(28.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                unfocusedBorderColor = Color.Transparent,
-            ),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         )
-        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(onClick = { music.playAll(list, false) }, enabled = list.isNotEmpty(), modifier = Modifier.weight(1f).height(48.dp)) {
-                Ico(R.drawable.ic_play_filled, size = 18.dp); Spacer(Modifier.width(8.dp)); Text("Слушать")
-            }
-            FilledTonalButton(onClick = { music.playAll(list, true) }, enabled = list.isNotEmpty(), modifier = Modifier.weight(1f).height(48.dp)) {
-                Ico(R.drawable.ic_shuffle, size = 18.dp); Spacer(Modifier.width(8.dp)); Text("Перемешать")
-            }
-        }
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+        Row(Modifier.padding(horizontal = 16.dp).padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = tab == 0, onClick = { tab = 0 }, label = { Text("Все треки") })
             FilterChip(selected = tab == 1, onClick = { tab = 1 }, label = { Text("Избранное (${saved.size})") })
         }
