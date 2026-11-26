@@ -10,7 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -91,10 +90,13 @@ fun NowPlayingSheet(vm: AppVM, onDismiss: () -> Unit) {
     val shuffle by music.shuffle.collectAsState()
     val repeat by music.repeat.collectAsState()
     val saved by music.saved.collectAsState()
-    val t = cur
-    if (t == null) { onDismiss(); return }
     var drag by remember { mutableStateOf<Float?>(null) }
     val radius by animateDpAsState(if (playing) 28.dp else 44.dp, label = "playShape")
+    val t = cur
+    if (t == null) {
+        LaunchedEffect(Unit) { onDismiss() }
+        return
+    }
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp).padding(bottom = 36.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             TrackArt(t, 280.dp, 36.dp)
@@ -164,28 +166,29 @@ fun MusicScreen(vm: AppVM) {
         val s = q.trim().lowercase()
         if (s.isEmpty()) source else source.filter { (it.title + " " + it.artist + " " + it.album).lowercase().contains(s) }
     }
+    val scheme = MaterialTheme.colorScheme
 
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Музыка", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                if (granted) Text("${library.size} треков на устройстве", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Музыка", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
+                if (granted) Text("${library.size} треков на устройстве", fontSize = 13.sp, color = scheme.onSurfaceVariant)
             }
             if (granted) IconButton(onClick = { music.scan() }) {
-                if (scanning) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.5.dp) else Ico(R.drawable.ic_refresh)
+                if (scanning) LoadingIndicator(Modifier.size(28.dp)) else Ico(R.drawable.ic_refresh)
             }
         }
 
         if (!granted) {
             Column(Modifier.fillMaxSize().padding(40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Box(Modifier.size(96.dp).clip(RoundedCornerShape(32.dp)).background(MaterialTheme.colorScheme.tertiaryContainer), contentAlignment = Alignment.Center) {
-                    Ico(R.drawable.ic_music_note, size = 44.dp, tint = MaterialTheme.colorScheme.onTertiaryContainer)
+                Box(Modifier.size(104.dp).clip(RoundedCornerShape(36.dp)).background(scheme.tertiaryContainer), contentAlignment = Alignment.Center) {
+                    Ico(R.drawable.ic_music_note, size = 48.dp, tint = scheme.onTertiaryContainer)
                 }
                 Spacer(Modifier.height(20.dp))
                 Text("Ваша музыка", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Text(
                     "Разрешите доступ, чтобы приложение нашло треки на этом устройстве. Файлы никуда не отправляются.",
-                    textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp),
+                    textAlign = TextAlign.Center, color = scheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp),
                 )
                 Spacer(Modifier.height(20.dp))
                 Button(onClick = { launcher.launch(MusicController.permission()) }, modifier = Modifier.height(52.dp)) { Text("Разрешить доступ") }
@@ -199,8 +202,8 @@ fun MusicScreen(vm: AppVM) {
             trailingIcon = { if (q.isNotEmpty()) IconButton(onClick = { q = "" }) { Ico(R.drawable.ic_close) } },
             shape = RoundedCornerShape(28.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                focusedContainerColor = scheme.surfaceContainerHigh,
+                unfocusedContainerColor = scheme.surfaceContainerHigh,
                 unfocusedBorderColor = Color.Transparent,
             ),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
@@ -214,8 +217,8 @@ fun MusicScreen(vm: AppVM) {
             }
         }
         Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = tab == 0, onClick = { tab = 0 }, label = { Text("Все треки") })
-            FilterChip(selected = tab == 1, onClick = { tab = 1 }, label = { Text("Избранное (${saved.size})") })
+            FilterChip(selected = tab == 0, onClick = { tab = 0 }, label = { Text("Все треки") }, shape = RoundedCornerShape(14.dp))
+            FilterChip(selected = tab == 1, onClick = { tab = 1 }, label = { Text("Избранное (${saved.size})") }, shape = RoundedCornerShape(14.dp))
         }
 
         if (list.isEmpty()) {
@@ -226,7 +229,7 @@ fun MusicScreen(vm: AppVM) {
                         tab == 1 -> "Избранных треков пока нет"
                         else -> "Треки не найдены"
                     },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = scheme.onSurfaceVariant,
                 )
             }
         }
@@ -235,7 +238,7 @@ fun MusicScreen(vm: AppVM) {
                 val isCur = cur?.id == t.id
                 ListItem(
                     modifier = Modifier.clickable { music.play(t, list) },
-                    colors = ListItemDefaults.colors(containerColor = if (isCur) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f) else Color.Transparent),
+                    colors = ListItemDefaults.colors(containerColor = if (isCur) scheme.secondaryContainer.copy(alpha = 0.5f) else Color.Transparent),
                     leadingContent = {
                         Box(contentAlignment = Alignment.Center) {
                             TrackArt(t, 52.dp, 14.dp)
@@ -249,7 +252,7 @@ fun MusicScreen(vm: AppVM) {
                     trailingContent = {
                         IconButton(onClick = { music.toggleSaved(t) }) {
                             val fav = music.isSaved(t)
-                            Ico(if (fav) R.drawable.ic_heart_filled else R.drawable.ic_heart, tint = if (fav) Color(0xFFEF4444) else MaterialTheme.colorScheme.outline, size = 22.dp)
+                            Ico(if (fav) R.drawable.ic_heart_filled else R.drawable.ic_heart, tint = if (fav) Color(0xFFEF4444) else scheme.outline, size = 22.dp)
                         }
                     },
                 )
